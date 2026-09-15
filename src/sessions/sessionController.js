@@ -80,7 +80,7 @@ export async function patchSessionHandler(req, res, next) {
   try {
     const updated = await sessionService.updateName(req.visitor._id, req.body.name);
     const visitor = {
-      id: updated._id.toString(),
+      id: updated.id.toString(),
       name: updated.name,
       hasCredentials: true,
       lastActiveAt: updated.lastActiveAt,

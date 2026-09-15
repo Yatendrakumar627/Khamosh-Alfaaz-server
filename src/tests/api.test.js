@@ -69,6 +69,16 @@ describe("Khamosh Alfaaz API", () => {
     assert.strictEqual(login.body.visitor.hasCredentials, true);
   });
 
+  it("updates the session display name", async () => {
+    const res = await a.patch("/api/session/name").send({ name: "Renamed Writer" });
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.body.visitor.name, "Renamed Writer");
+    assert.strictEqual(res.body.name, "Renamed Writer");
+
+    const session = await a.get("/api/session");
+    assert.strictEqual(session.body.visitor.name, "Renamed Writer");
+  });
+
   it("rejects unauthenticated access", async () => {
     const res = await req().get("/api/entries");
     assert.strictEqual(res.status, 401);
@@ -158,6 +168,15 @@ describe("Khamosh Alfaaz API", () => {
     const res = await a.post("/api/entries").send({ title: "", content: "" });
     assert.strictEqual(res.status, 400);
     assert.strictEqual(res.body.error, "Validation failed");
+  });
+
+  it("returns 400 for malformed JSON instead of 500", async () => {
+    const res = await req()
+      .post("/api/session/login")
+      .set("Content-Type", "application/json")
+      .send("{bad json");
+    assert.strictEqual(res.status, 400);
+    assert.strictEqual(res.body.error, "Invalid JSON in request body");
   });
 
   it("favorite and pin", async () => {
@@ -298,6 +317,29 @@ describe("Khamosh Alfaaz API", () => {
     const res = await a.get(`/api/export/entry/${id}/txt`);
     assert.strictEqual(res.status, 200);
     assert.ok(res.text.includes("Export Me"));
+  });
+
+  it("export docx and pdf return files", async () => {
+    const create = await a.post("/api/entries").send({ title: "Export Both", content: "docx and pdf" });
+    const id = create.body.entry._id;
+
+    const docx = await a.get(`/api/export/entry/${id}/docx`).buffer(true).parse((res, cb) => {
+      const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.strictEqual(docx.status, 200);
+    assert.ok(docx.body.length > 0, "docx body should not be empty");
+
+    const pdf = await a.get(`/api/export/entry/${id}/pdf`).buffer(true).parse((res, cb) => {
+      const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.strictEqual(pdf.status, 200);
+    assert.ok(pdf.body.length > 0, "pdf body should not be empty");
+
+    const bulk = await a.post("/api/export/pdf").send({}).buffer(true).parse((res, cb) => {
+      const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+    assert.strictEqual(bulk.status, 200);
+    assert.ok(bulk.body.length > 0, "bulk pdf should not be empty");
   });
 
   it("backup and restore preserves entry visibility", async () => {

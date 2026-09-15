@@ -13,6 +13,9 @@ export const notFound = (req, res, next) => {
 };
 
 export const errorHandler = (err, req, res, next) => {
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Invalid JSON in request body" });
+  }
   if (err.name === "ZodError") {
     const details = Object.fromEntries(
       err.errors.map((e) => [e.path.join(".") || "body", e.message]),

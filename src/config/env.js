@@ -1,16 +1,24 @@
+const PRODUCTION_CLIENT_URL = "https://khamosh-alfaaz-client.vercel.app";
+
 export function getEnv() {
-  const clientUrls = (process.env.CLIENT_URL || "http://localhost:5173")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const clientUrls = [
+    ...(process.env.CLIENT_URL || "http://localhost:5173")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+    PRODUCTION_CLIENT_URL,
+    ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173"]),
+  ];
+
+  const uniqueOrigins = [...new Set(clientUrls)];
 
   return {
     nodeEnv: process.env.NODE_ENV || "development",
     port: Number(process.env.PORT) || 5001,
     mongoUri: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/khamosh-alfaaz",
     sessionSecret: process.env.SESSION_SECRET || "dev-secret-change-me",
-    clientUrl: clientUrls[0],
-    clientOrigins: clientUrls,
+    clientUrl: uniqueOrigins[0],
+    clientOrigins: uniqueOrigins,
     maxTitleLength: Number(process.env.MAX_TITLE_LENGTH) || 200,
     maxTagCount: Number(process.env.MAX_TAG_COUNT) || 20,
     maxTagLength: Number(process.env.MAX_TAG_LENGTH) || 50,
