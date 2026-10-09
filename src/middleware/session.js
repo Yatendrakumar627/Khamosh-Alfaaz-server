@@ -35,18 +35,30 @@ export async function createSession(visitorId, res) {
 
 export async function destroySession(req, res) {
   await deleteSessionToken(req.cookies?.[COOKIE_NAME]);
-  res.clearCookie(COOKIE_NAME, { path: "/" });
+  const { maxAge, ...clearOptions } = cookieOptions();
+  res.clearCookie(COOKIE_NAME, clearOptions);
 }
 
 export async function findSession(token) {
   if (!token) return null;
-  return Session.findOne({
+  const now = new Date();
+  const session = await Session.findOne({
     sessionId: hashToken(token),
-    expiresAt: { $gt: new Date() },
+    expiresAt: { $gt: now },
   }).populate({
     path: "visitorId",
     select: "name username pinHash lastActiveAt",
   });
+
+  if (!session) return null;
+
+  // Enforce 24-hour max lifetime even for older sessions created before the 24h config change
+  if (session.createdAt && now.getTime() - new Date(session.createdAt).getTime() > env.sessionMaxAgeMs) {
+    await Session.deleteOne({ _id: session._id });
+    return null;
+  }
+
+  return session;
 }
 
 export async function getOptionalSession(req) {
@@ -67,6 +79,13 @@ export async function requireSession(req, res, next) {
 
   if (!session.visitorId.username || !session.visitorId.pinHash) {
     return next(new AppError("Credentials required", 401));
+  }
+
+  // Update lastActiveAt periodically if > 5 minutes have elapsed
+  const now = Date.now();
+  const lastActive = session.visitorId.lastActiveAt ? new Date(session.visitorId.lastActiveAt).getTime() : 0;
+  if (now - lastActive > 5 * 60 * 1000) {
+    Visitor.updateOne({ _id: session.visitorId._id }, { $set: { lastActiveAt: new Date(now) } }).catch(() => {});
   }
 
   req.visitor = session.visitorId;

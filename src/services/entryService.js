@@ -35,16 +35,37 @@ export async function listEntries(visitorId, query) {
   if (type) filter.type = type;
   if (typeof favorite === "boolean") filter.isFavorite = favorite;
   if (typeof pinned === "boolean") filter.isPinned = pinned;
-  if (from || to || date) {
-    filter.entryDate = {};
+  if (from || to) {
+    filter.entryDate = filter.entryDate || {};
     if (from) filter.entryDate.$gte = new Date(from);
     if (to) filter.entryDate.$lte = new Date(to);
-    if (date) {
-      const start = new Date(date);
-      const end = new Date(start);
-      end.setHours(23, 59, 59, 999);
-      filter.entryDate.$gte = start;
-      filter.entryDate.$lte = end;
+  }
+  if (date) {
+    let y, m, d;
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+      [y, m, d] = date.split("T")[0].split("-").map(Number);
+    } else {
+      const dObj = new Date(date);
+      if (!isNaN(dObj.getTime())) {
+        y = dObj.getUTCFullYear();
+        m = dObj.getUTCMonth() + 1;
+        d = dObj.getUTCDate();
+      }
+    }
+    if (y && m && d) {
+      const utcStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+      const utcEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+      const localStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+      const localEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+
+      const start = new Date(Math.min(utcStart.getTime(), localStart.getTime()));
+      const end = new Date(Math.max(utcEnd.getTime(), localEnd.getTime()));
+
+      filter.$or = [
+        { entryDate: { $gte: start, $lte: end } },
+        { entryDate: null, createdAt: { $gte: start, $lte: end } },
+        { entryDate: { $exists: false }, createdAt: { $gte: start, $lte: end } },
+      ];
     }
   }
   if (tags) {
