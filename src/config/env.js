@@ -23,7 +23,7 @@ export function getEnv() {
     maxTagCount: Number(process.env.MAX_TAG_COUNT) || 20,
     maxTagLength: Number(process.env.MAX_TAG_LENGTH) || 50,
     maxNameLength: Number(process.env.MAX_NAME_LENGTH) || 100,
-    sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS) || 24 * 60 * 60 * 1000,
+    sessionMaxAgeMs: Number(process.env.SESSION_MAX_AGE_MS) || 30 * 24 * 60 * 60 * 1000,
     rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
     rateLimitMax: Number(process.env.RATE_LIMIT_MAX) || 300,
   };

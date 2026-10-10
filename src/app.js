@@ -37,12 +37,12 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false, limit: "2mb" }));
   app.use(cookieParser(env.sessionSecret));
 
-  app.use("/api", apiLimiter);
-
+  // Health check endpoint (exempt from rate limiter for client keep-alive pings)
   app.get("/api/health", (req, res) =>
     res.json({ ok: true, status: "healthy", uptime: process.uptime(), timestamp: new Date().toISOString() }),
   );
 
+  app.use("/api", apiLimiter);
   app.use("/api", apiRouter);
 
   app.use(notFound);
