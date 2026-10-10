@@ -32,7 +32,19 @@ export async function listEntries(visitorId, query) {
   } = query;
 
   const filter = { visitorId };
-  if (type) filter.type = type;
+  if (type) {
+    const cleanType = String(type).toLowerCase().trim();
+    if (cleanType === 'diary') {
+      filter.$or = [
+        { type: 'diary' },
+        { type: { $exists: false } },
+        { type: null },
+        { type: '' },
+      ];
+    } else {
+      filter.type = cleanType;
+    }
+  }
   if (typeof favorite === "boolean") filter.isFavorite = favorite;
   if (typeof pinned === "boolean") filter.isPinned = pinned;
   if (from || to) {
