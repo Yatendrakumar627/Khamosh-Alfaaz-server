@@ -163,18 +163,37 @@ export async function exportEntryTxtHandler(req, res, next) {
   }
 }
 
+export async function exportEntryMdHandler(req, res, next) {
+  try {
+    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const visitorName = await getVisitorName(req.visitor._id);
+    const buffer = exportService.buildMdBuffer({
+      entries: [entry],
+      visitorName,
+    });
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${sanitize(entry.title)}.md"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function exportBulkDocxHandler(req, res, next) {
   try {
-    const query = listQuerySchema.parse(req.query);
-    const { entries } = await entryService.listEntries(req.visitor._id, { ...query, limit: 10000 });
+    const payload = { ...req.query, ...req.body };
+    const sortOrder = payload.sortOrder || payload.sort || "newest";
+    const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
+    const dateStr = new Date().toISOString().split("T")[0];
     const buffer = await exportService.buildDocxBuffer({
       title: "My Diary",
       entries,
       visitorName,
+      sortOrder,
     });
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    res.setHeader("Content-Disposition", 'attachment; filename="my-diary.docx"');
+    res.setHeader("Content-Disposition", `attachment; filename="khamosh-alfaaz-diary-${dateStr}.docx"`);
     res.send(buffer);
   } catch (err) {
     next(err);
@@ -183,16 +202,61 @@ export async function exportBulkDocxHandler(req, res, next) {
 
 export async function exportBulkPdfHandler(req, res, next) {
   try {
-    const query = listQuerySchema.parse(req.query);
-    const { entries } = await entryService.listEntries(req.visitor._id, { ...query, limit: 10000 });
+    const payload = { ...req.query, ...req.body };
+    const sortOrder = payload.sortOrder || payload.sort || "newest";
+    const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
+    const dateStr = new Date().toISOString().split("T")[0];
     const buffer = await exportService.buildPdfBuffer({
       title: "My Diary",
       entries,
       visitorName,
+      sortOrder,
     });
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename="my-diary.pdf"');
+    res.setHeader("Content-Disposition", `attachment; filename="khamosh-alfaaz-diary-${dateStr}.pdf"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function exportBulkTxtHandler(req, res, next) {
+  try {
+    const payload = { ...req.query, ...req.body };
+    const sortOrder = payload.sortOrder || payload.sort || "newest";
+    const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
+    const visitorName = await getVisitorName(req.visitor._id);
+    const dateStr = new Date().toISOString().split("T")[0];
+    const buffer = exportService.buildTxtBuffer({
+      entries,
+      visitorName,
+      sortOrder,
+    });
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="khamosh-alfaaz-diary-${dateStr}.txt"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function exportBulkMdHandler(req, res, next) {
+  try {
+    const payload = { ...req.query, ...req.body };
+    const sortOrder = payload.sortOrder || payload.sort || "newest";
+    const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
+    const visitorName = await getVisitorName(req.visitor._id);
+    const dateStr = new Date().toISOString().split("T")[0];
+    const buffer = exportService.buildMdBuffer({
+      entries,
+      visitorName,
+      sortOrder,
+    });
+    res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="khamosh-alfaaz-diary-${dateStr}.md"`);
+    res.send(buffer);
+
     res.send(buffer);
   } catch (err) {
     next(err);

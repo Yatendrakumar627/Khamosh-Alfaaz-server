@@ -5,12 +5,14 @@ import { env } from "./config/env.js";
 const app = createApp();
 
 async function main() {
-  await connectDB();
   const server = app.listen(env.port, () => {
     console.log(`Khamosh Alfaaz server running on http://localhost:${env.port} (${env.nodeEnv})`);
   });
   server.keepAliveTimeout = 65000;
   server.headersTimeout = 66000;
+
+  // Connect to MongoDB (Mongoose safely buffers commands during handshake)
+  await connectDB();
 }
 
 main().catch((err) => {

@@ -89,7 +89,30 @@ export async function getStatistics(visitorId) {
     ]),
     Entry.aggregate([
       { $match: { visitorId } },
-      { $group: { _id: "$type", count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: {
+            $let: {
+              vars: {
+                normalizedType: { $toLower: { $ifNull: ["$type", "diary"] } },
+              },
+              in: {
+                $cond: [
+                  {
+                    $or: [
+                      { $eq: ["$$normalizedType", ""] },
+                      { $eq: ["$$normalizedType", "diary"] },
+                    ],
+                  },
+                  "diary",
+                  "$$normalizedType",
+                ],
+              },
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
     ]),
     Entry.countDocuments({ visitorId, isFavorite: true }),
     Entry.countDocuments({ visitorId, isPinned: true }),

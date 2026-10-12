@@ -52,8 +52,15 @@ router.delete("/categories/:id", requireSession, asyncHandler(categoryController
 router.get("/export/entry/:id/docx", requireSession, exportLimiter, asyncHandler(entryController.exportEntryDocxHandler));
 router.get("/export/entry/:id/pdf", requireSession, exportLimiter, asyncHandler(entryController.exportEntryPdfHandler));
 router.get("/export/entry/:id/txt", requireSession, exportLimiter, asyncHandler(entryController.exportEntryTxtHandler));
+router.get("/export/entry/:id/md", requireSession, exportLimiter, asyncHandler(entryController.exportEntryMdHandler));
+router.get("/export/docx", requireSession, exportLimiter, asyncHandler(entryController.exportBulkDocxHandler));
 router.post("/export/docx", requireSession, exportLimiter, asyncHandler(entryController.exportBulkDocxHandler));
+router.get("/export/pdf", requireSession, exportLimiter, asyncHandler(entryController.exportBulkPdfHandler));
 router.post("/export/pdf", requireSession, exportLimiter, asyncHandler(entryController.exportBulkPdfHandler));
+router.get("/export/txt", requireSession, exportLimiter, asyncHandler(entryController.exportBulkTxtHandler));
+router.post("/export/txt", requireSession, exportLimiter, asyncHandler(entryController.exportBulkTxtHandler));
+router.get("/export/md", requireSession, exportLimiter, asyncHandler(entryController.exportBulkMdHandler));
+router.post("/export/md", requireSession, exportLimiter, asyncHandler(entryController.exportBulkMdHandler));
 
 // Backup
 router.get("/backup", requireSession, asyncHandler(backupController.backupHandler));

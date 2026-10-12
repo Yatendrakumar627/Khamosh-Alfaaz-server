@@ -201,3 +201,94 @@ export async function onThisDay(visitorId) {
   });
   return { entries: memories };
 }
+
+export async function getEntriesForExport(visitorId, payload = {}) {
+  const filter = { visitorId };
+
+  let idList = [];
+  if (Array.isArray(payload.entryIds)) {
+    idList = payload.entryIds.map(String).map((s) => s.trim()).filter(Boolean);
+  } else if (typeof payload.entryIds === "string" && payload.entryIds.trim()) {
+    idList = payload.entryIds.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  if (idList.length > 0) {
+    filter._id = { $in: idList };
+  } else {
+    const now = new Date();
+    if (payload.scope === "month") {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const start = new Date(year, month, 1, 0, 0, 0, 0);
+      const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+      filter.entryDate = { $gte: start, $lte: end };
+    } else if (payload.scope === "year") {
+      const year = now.getFullYear();
+      const start = new Date(year, 0, 1, 0, 0, 0, 0);
+      const end = new Date(year, 11, 31, 23, 59, 59, 999);
+      filter.entryDate = { $gte: start, $lte: end };
+    } else if (
+      payload.scope === "custom" ||
+      payload.startDate ||
+      payload.endDate ||
+      payload.from ||
+      payload.to
+    ) {
+      const startVal = payload.startDate || payload.from;
+      const endVal = payload.endDate || payload.to;
+      const dateFilter = {};
+      if (startVal) {
+        const s = new Date(startVal);
+        s.setHours(0, 0, 0, 0);
+        dateFilter.$gte = s;
+      }
+      if (endVal) {
+        const e = new Date(endVal);
+        e.setHours(23, 59, 59, 999);
+        dateFilter.$lte = e;
+      }
+      if (Object.keys(dateFilter).length > 0) {
+        filter.entryDate = dateFilter;
+      }
+    }
+  }
+
+  if (payload.type) {
+    const cleanType = String(payload.type).toLowerCase().trim();
+    if (cleanType === "diary") {
+      filter.$or = [
+        { type: "diary" },
+        { type: { $exists: false } },
+        { type: null },
+        { type: "" },
+      ];
+    } else {
+      filter.type = cleanType;
+    }
+  }
+
+  if (payload.favorite === true || payload.favorite === "true") {
+    filter.isFavorite = true;
+  }
+  if (payload.pinned === true || payload.pinned === "true") {
+    filter.isPinned = true;
+  }
+  if (payload.tags) {
+    const tagList = String(payload.tags).split(",").map((t) => t.trim()).filter(Boolean);
+    if (tagList.length) filter.tags = { $in: tagList };
+  }
+
+  const isOldestFirst =
+    String(payload.sortOrder || payload.sort || "").toLowerCase() === "oldest" ||
+    String(payload.sortOrder || payload.sort || "").toLowerCase() === "asc";
+
+  const sortCriteria = isOldestFirst
+    ? { entryDate: 1, createdAt: 1 }
+    : { entryDate: -1, createdAt: -1 };
+
+  const entries = await Entry.find(filter)
+    .sort(sortCriteria)
+    .lean();
+
+  return entries;
+}
