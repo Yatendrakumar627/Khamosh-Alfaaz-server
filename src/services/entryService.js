@@ -233,15 +233,23 @@ export async function calendarEntries(visitorId, month) {
 
 export async function onThisDay(visitorId) {
   const today = new Date();
-  const currentMonth = today.getMonth();
+  const currentMonth = today.getMonth() + 1;
   const currentDay = today.getDate();
-  const entries = await Entry.find({ visitorId }).sort({ entryDate: -1 }).lean();
-  const memories = entries.filter((entry) => {
-    const entryDate = new Date(entry.entryDate);
-    return entryDate.getMonth() === currentMonth &&
-      entryDate.getDate() === currentDay &&
-      entryDate.getFullYear() < today.getFullYear();
-  });
+  const currentYear = today.getFullYear();
+
+  const memories = await Entry.find({
+    visitorId,
+    $expr: {
+      $and: [
+        { $eq: [{ $month: "$entryDate" }, currentMonth] },
+        { $eq: [{ $dayOfMonth: "$entryDate" }, currentDay] },
+        { $lt: [{ $year: "$entryDate" }, currentYear] },
+      ],
+    },
+  })
+    .sort({ entryDate: -1 })
+    .lean();
+
   return { entries: memories };
 }
 

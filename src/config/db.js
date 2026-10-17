@@ -7,10 +7,13 @@ export async function connectDB() {
   if (connected) return mongoose.connection;
   try {
     await mongoose.connect(env.mongoUri, {
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      family: 4,
       maxPoolSize: 10,
-      minPoolSize: 1,
-      maxIdleTimeMS: 60000,
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      autoIndex: env.nodeEnv !== "production",
     });
     connected = true;
     console.log(`MongoDB connected: ${mongoose.connection.name} (${mongoose.connection.host})`);

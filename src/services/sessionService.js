@@ -90,7 +90,7 @@ export async function updateName(visitorId, name) {
 }
 
 export async function getStatistics(visitorId) {
-  const [total, visibilityBreakdown, byType, favorites, pinned, oldest, newest] = await Promise.all([
+  const [total, visibilityBreakdown, byType, favorites, pinned, oldest, newest, byDay] = await Promise.all([
     Entry.countDocuments({ visitorId }),
     Entry.aggregate([
       { $match: { visitorId } },
@@ -127,18 +127,17 @@ export async function getStatistics(visitorId) {
     Entry.countDocuments({ visitorId, isPinned: true }),
     Entry.findOne({ visitorId }).sort({ entryDate: 1 }).lean(),
     Entry.findOne({ visitorId }).sort({ entryDate: -1 }).lean(),
+    Entry.aggregate([
+      { $match: { visitorId } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$entryDate" } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]),
   ]);
 
   const visibilityCounts = Object.fromEntries(
     visibilityBreakdown.map(({ _id: visibility, count }) => [visibility, count]),
   );
   const publicEntries = visibilityCounts.public || 0;
-
-  const byDay = await Entry.aggregate([
-    { $match: { visitorId } },
-    { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$entryDate" } }, count: { $sum: 1 } } },
-    { $sort: { _id: 1 } },
-  ]);
 
   let longestStreak = 0;
   let currentStreak = 0;

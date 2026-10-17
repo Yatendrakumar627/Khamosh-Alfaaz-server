@@ -1,10 +1,20 @@
-import { test, describe } from "node:test";
+import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import request from "supertest";
+import mongoose from "mongoose";
 import { createApp } from "../app.js";
+import { connectDB } from "../config/db.js";
 
 describe("Security Audits & Regression Tests", () => {
   const app = createApp();
+
+  before(async () => {
+    await connectDB();
+  });
+
+  after(async () => {
+    await mongoose.disconnect();
+  });
 
   test("CORS rejects untrusted origins with 403", async () => {
     const res = await request(app)

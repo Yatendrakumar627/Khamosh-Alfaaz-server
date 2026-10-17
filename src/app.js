@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import { env } from "./config/env.js";
 import apiRouter from "./routes/api.js";
 import { notFound, errorHandler, AppError } from "./utils/errors.js";
@@ -73,16 +74,25 @@ export function createApp() {
     }),
   );
 
+  app.use(compression());
   app.use(csrfProtection);
 
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: false, limit: "2mb" }));
   app.use(cookieParser(env.sessionSecret));
 
-  // Health check endpoint (exempt from rate limiter for client keep-alive pings)
+  // Health check endpoint (exempt from rate limiter for keep-alive pings)
   app.get("/api/health", (req, res) =>
     res.json({ ok: true, status: "healthy", uptime: process.uptime(), timestamp: new Date().toISOString() }),
   );
+
+  // Cache-Control headers for public content (quotes, public entries, categories)
+  app.use("/api/public", (req, res, next) => {
+    if (req.method === "GET") {
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=300");
+    }
+    next();
+  });
 
   app.use("/api", apiLimiter);
   app.use("/api", apiRouter);
