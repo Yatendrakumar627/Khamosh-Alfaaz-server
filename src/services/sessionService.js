@@ -57,9 +57,18 @@ export async function registerVisitor({ name, username, pin, claimVisitorId }) {
   }
 }
 
+const DUMMY_PIN_HASH =
+  "scrypt$0123456789abcdef0123456789abcdef$0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 export async function authenticateVisitor({ username, pin }) {
   const visitor = await Visitor.findOne({ username: username.trim().toLowerCase() }).select("+pinHash");
-  if (!visitor || !verifyPin(pin, visitor.pinHash)) {
+  if (!visitor) {
+    // Constant-time defense against timing attacks: perform dummy scrypt computation
+    verifyPin(pin, DUMMY_PIN_HASH);
+    throw new AppError("Invalid username or PIN", 401);
+  }
+
+  if (!verifyPin(pin, visitor.pinHash)) {
     throw new AppError("Invalid username or PIN", 401);
   }
   return { visitor, created: false };

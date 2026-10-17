@@ -34,28 +34,42 @@ export async function restoreBackup(visitorId, payload, { wipeFirst = true } = {
     throw new AppError("Invalid backup payload", 400);
   }
 
-  const normalizedEntries = payload.entries.map((e) => ({
-    visitorId,
-    title: e.title || "Untitled Entry",
-    content: String(e.content),
-    type: ["diary", "thought", "quote", "idea", "note", "personal", "gratitude", "other"].includes(e.type) ? e.type : "diary",
-    tags: Array.isArray(e.tags) ? e.tags : [],
-    entryDate: e.entryDate ? new Date(e.entryDate) : new Date(),
-    isFavorite: Boolean(e.isFavorite),
-    isPinned: Boolean(e.isPinned),
-    visibility: ["private", "public"].includes(e.visibility) ? e.visibility : "private",
-  }));
+  const safeEntries = payload.entries.slice(0, 10000);
+  const normalizedEntries = safeEntries.map((e) => {
+    const rawDate = e.entryDate ? new Date(e.entryDate) : new Date();
+    const validDate = isNaN(rawDate.getTime()) ? new Date() : rawDate;
+    return {
+      visitorId,
+      title: String(e.title || "Untitled Entry").slice(0, 200),
+      content: String(e.content || "").slice(0, 100000),
+      type: ["diary", "thought", "quote", "idea", "note", "personal", "gratitude", "other"].includes(e.type) ? e.type : "diary",
+      tags: Array.isArray(e.tags) ? e.tags.map(String).slice(0, 20).map((t) => t.slice(0, 50)) : [],
+      entryDate: validDate,
+      isFavorite: Boolean(e.isFavorite),
+      isPinned: Boolean(e.isPinned),
+      visibility: ["private", "public"].includes(e.visibility) ? e.visibility : "private",
+    };
+  });
 
   const normalizedCategories = [];
   if (Array.isArray(payload.categories)) {
     const seen = new Set();
-    for (const c of payload.categories) {
-      const name = String(c.name).trim().slice(0, 60);
-      if (name && !seen.has(name)) {
-        seen.add(name);
+    const safeCategories = payload.categories.slice(0, 200);
+    for (const c of safeCategories) {
+      const name = String(c?.name || "").trim().slice(0, 60);
+      if (name && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
         normalizedCategories.push({ visitorId, name });
       }
     }
+  }
+
+  // If wiping first, ensure wipe completes completely BEFORE initiating any insertions
+  if (wipeFirst) {
+    await Promise.all([
+      Entry.deleteMany({ visitorId }),
+      Category.deleteMany({ visitorId }),
+    ]);
   }
 
   const ops = [];
@@ -69,14 +83,10 @@ export async function restoreBackup(visitorId, payload, { wipeFirst = true } = {
     ops.push(Visitor.updateOne({ _id: visitorId }, { $set: { name: String(payload.visitor.name).slice(0, 100), lastActiveAt: new Date() } }));
   }
 
-  if (wipeFirst) {
-    await Promise.all([
-      Entry.deleteMany({ visitorId }),
-      Category.deleteMany({ visitorId }),
-    ]);
+  if (ops.length) {
+    await Promise.all(ops);
   }
 
-  if (ops.length) await Promise.all(ops);
   return { restored: true, entries: normalizedEntries.length, categories: normalizedCategories.length };
 }
 

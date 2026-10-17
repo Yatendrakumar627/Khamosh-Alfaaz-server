@@ -6,9 +6,11 @@ export async function listCategories(visitorId) {
 }
 
 export async function createCategory(visitorId, name) {
-  const existing = await Category.findOne({ visitorId, name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") });
+  const safeName = String(name || "").trim().slice(0, 60);
+  const escaped = safeName.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
+  const existing = await Category.findOne({ visitorId, name: new RegExp(`^${escaped}$`, "i") });
   if (existing) return { category: existing.toObject(), created: false };
-  const cat = await Category.create({ visitorId, name });
+  const cat = await Category.create({ visitorId, name: safeName });
   return { category: cat.toObject(), created: true };
 }
 

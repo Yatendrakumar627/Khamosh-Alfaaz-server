@@ -11,10 +11,11 @@ function responseVisitor(visitor) {
 }
 
 async function startSession(req, res, result) {
-  await createSession(result.visitor._id, res);
+  const sessionData = await createSession(result.visitor._id, res);
   const visitor = responseVisitor(await sessionService.getSession(result.visitor._id));
   return res.status(result.created ? 201 : 200).json({
     ok: true,
+    token: sessionData.token,
     visitor,
     session: visitor,
     name: visitor.name,
@@ -78,7 +79,8 @@ export async function getSessionHandler(req, res, next) {
 
 export async function patchSessionHandler(req, res, next) {
   try {
-    const updated = await sessionService.updateName(req.visitor._id, req.body.name);
+    const name = req.validated?.name || req.body?.name;
+    const updated = await sessionService.updateName(req.visitor._id, name);
     const visitor = {
       id: updated.id.toString(),
       name: updated.name,

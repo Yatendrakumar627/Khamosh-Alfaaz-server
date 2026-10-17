@@ -1,5 +1,14 @@
+import mongoose from "mongoose";
 import * as publicService from "../services/publicService.js";
 import { listQuerySchema } from "../validators/schemas.js";
+import { AppError } from "../utils/errors.js";
+
+function validateObjectId(id) {
+  if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError("Invalid identifier", 400);
+  }
+  return id;
+}
 
 export async function listPublicEntriesHandler(req, res, next) {
   try {
@@ -13,7 +22,8 @@ export async function listPublicEntriesHandler(req, res, next) {
 
 export async function getPublicEntryHandler(req, res, next) {
   try {
-    const entry = await publicService.getPublicEntry(req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await publicService.getPublicEntry(id);
     res.json({ ok: true, entry });
   } catch (err) {
     next(err);

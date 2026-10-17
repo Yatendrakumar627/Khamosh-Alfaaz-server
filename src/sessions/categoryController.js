@@ -1,5 +1,14 @@
+import mongoose from "mongoose";
 import * as categoryService from "../services/categoryService.js";
 import { categoryCreateSchema, categoryUpdateSchema } from "../validators/schemas.js";
+import { AppError } from "../utils/errors.js";
+
+function validateObjectId(id) {
+  if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError("Invalid identifier", 400);
+  }
+  return id;
+}
 
 export async function listCategoriesHandler(req, res, next) {
   try {
@@ -22,8 +31,9 @@ export async function createCategoryHandler(req, res, next) {
 
 export async function updateCategoryHandler(req, res, next) {
   try {
+    const id = validateObjectId(req.params.id);
     const data = categoryUpdateSchema.parse(req.body);
-    const category = await categoryService.updateCategory(req.visitor._id, req.params.id, data.name);
+    const category = await categoryService.updateCategory(req.visitor._id, id, data.name);
     res.json({ ok: true, category });
   } catch (err) {
     next(err);
@@ -32,7 +42,8 @@ export async function updateCategoryHandler(req, res, next) {
 
 export async function deleteCategoryHandler(req, res, next) {
   try {
-    await categoryService.deleteCategory(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    await categoryService.deleteCategory(req.visitor._id, id);
     res.json({ ok: true, deleted: true });
   } catch (err) {
     next(err);

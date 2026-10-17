@@ -16,6 +16,19 @@ export function cookieOptions() {
   };
 }
 
+export function getSessionToken(req) {
+  if (req.cookies?.[COOKIE_NAME]) return req.cookies[COOKIE_NAME];
+  const auth = req.headers?.authorization;
+  if (auth && typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+  const customHeader = req.headers?.["x-session-token"];
+  if (customHeader && typeof customHeader === "string") {
+    return customHeader.trim();
+  }
+  return null;
+}
+
 export async function createSession(visitorId, res) {
   const rawToken = generateSessionId();
   const hashed = hashToken(rawToken);
@@ -30,17 +43,20 @@ export async function createSession(visitorId, res) {
   await Visitor.updateOne({ _id: visitorId }, { $set: { lastActiveAt: new Date() } });
 
   res.cookie(COOKIE_NAME, rawToken, cookieOptions());
-  return { visitorId, expiresAt };
+  return { visitorId, token: rawToken, expiresAt };
 }
 
 export async function destroySession(req, res) {
-  await deleteSessionToken(req.cookies?.[COOKIE_NAME]);
+  const token = getSessionToken(req);
+  if (token) {
+    await deleteSessionToken(token);
+  }
   const { maxAge, ...clearOptions } = cookieOptions();
   res.clearCookie(COOKIE_NAME, clearOptions);
 }
 
 export async function findSession(token) {
-  if (!token) return null;
+  if (!token || typeof token !== "string") return null;
   const now = new Date();
   const session = await Session.findOne({
     sessionId: hashToken(token),
@@ -56,11 +72,11 @@ export async function findSession(token) {
 }
 
 export async function getOptionalSession(req) {
-  return findSession(req.cookies?.[COOKIE_NAME]);
+  return findSession(getSessionToken(req));
 }
 
 export async function deleteSessionToken(token) {
-  if (token) {
+  if (token && typeof token === "string") {
     await Session.deleteOne({ sessionId: hashToken(token) });
   }
 }

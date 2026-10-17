@@ -1,5 +1,16 @@
+import mongoose from "mongoose";
 import Entry from "../models/Entry.js";
 import { AppError } from "../utils/errors.js";
+
+function sanitizeSearchText(text) {
+  if (typeof text !== "string") return "";
+  let clean = text.trim().slice(0, 200);
+  const quoteCount = (clean.match(/"/g) || []).length;
+  if (quoteCount % 2 !== 0) {
+    clean = clean.replace(/"/g, " ");
+  }
+  return clean.trim();
+}
 
 const SORT_MAP = {
   createdAt: "createdAt",
@@ -88,11 +99,13 @@ export async function listEntries(visitorId, query) {
   let mongoQuery = Entry.find(filter);
 
   if (search && search.trim()) {
-    const searchText = search.trim();
-    mongoQuery = Entry.find({
-      ...filter,
-      $text: { $caseSensitive: false, $diacriticSensitive: false, $search: searchText },
-    });
+    const searchText = sanitizeSearchText(search);
+    if (searchText) {
+      mongoQuery = Entry.find({
+        ...filter,
+        $text: { $caseSensitive: false, $diacriticSensitive: false, $search: searchText },
+      });
+    }
   }
 
   const sortKey = SORT_MAP[sort] || "-createdAt";
@@ -237,9 +250,9 @@ export async function getEntriesForExport(visitorId, payload = {}) {
 
   let idList = [];
   if (Array.isArray(payload.entryIds)) {
-    idList = payload.entryIds.map(String).map((s) => s.trim()).filter(Boolean);
+    idList = payload.entryIds.map(String).map((s) => s.trim()).filter((id) => mongoose.Types.ObjectId.isValid(id));
   } else if (typeof payload.entryIds === "string" && payload.entryIds.trim()) {
-    idList = payload.entryIds.split(",").map((s) => s.trim()).filter(Boolean);
+    idList = payload.entryIds.split(",").map((s) => s.trim()).filter((id) => mongoose.Types.ObjectId.isValid(id));
   }
 
   if (idList.length > 0) {
@@ -269,13 +282,17 @@ export async function getEntriesForExport(visitorId, payload = {}) {
       const dateFilter = {};
       if (startVal) {
         const s = new Date(startVal);
-        s.setHours(0, 0, 0, 0);
-        dateFilter.$gte = s;
+        if (!isNaN(s.getTime())) {
+          s.setHours(0, 0, 0, 0);
+          dateFilter.$gte = s;
+        }
       }
       if (endVal) {
         const e = new Date(endVal);
-        e.setHours(23, 59, 59, 999);
-        dateFilter.$lte = e;
+        if (!isNaN(e.getTime())) {
+          e.setHours(23, 59, 59, 999);
+          dateFilter.$lte = e;
+        }
       }
       if (Object.keys(dateFilter).length > 0) {
         filter.entryDate = dateFilter;
@@ -316,8 +333,10 @@ export async function getEntriesForExport(visitorId, payload = {}) {
     ? { entryDate: 1, createdAt: 1 }
     : { entryDate: -1, createdAt: -1 };
 
+  // Cap at 1000 items to protect memory and event loop during document conversion
   const entries = await Entry.find(filter)
     .sort(sortCriteria)
+    .limit(1000)
     .lean();
 
   return entries;

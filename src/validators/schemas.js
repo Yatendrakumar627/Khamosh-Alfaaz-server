@@ -27,7 +27,7 @@ const credentialPinSchema = z
 
 const backupEntrySchema = z.object({
   title: z.string().trim().max(200).optional().default("Untitled Entry"),
-  content: z.string().trim().min(1, "Content is required"),
+  content: z.string().trim().min(1, "Content is required").max(100000, "Content exceeds maximum length (100,000 characters)"),
   type: z.enum(entryTypes).default("diary"),
   tags: z.array(z.string().trim().max(50)).max(20).default([]),
   entryDate: z.coerce.date().optional(),
@@ -69,7 +69,7 @@ export const sessionNameSchema = z.object({
 
 export const entryCreateSchema = z.object({
   title: z.string().trim().max(200, "Title too long").optional().default("Untitled Entry"),
-  content: z.string().trim().min(1, "Content is required"),
+  content: z.string().trim().min(1, "Content is required").max(100000, "Content exceeds maximum length (100,000 characters)"),
   type: z.enum(entryTypes).default("diary"),
   tags: z.array(z.string().trim().max(50)).max(20).default([]),
   entryDate: z.coerce.date().optional(),
@@ -78,7 +78,7 @@ export const entryCreateSchema = z.object({
 
 export const entryUpdateSchema = z.object({
   title: z.string().trim().max(200, "Title too long").optional(),
-  content: z.string().trim().min(1, "Content is required").optional(),
+  content: z.string().trim().min(1, "Content is required").max(100000, "Content exceeds maximum length (100,000 characters)").optional(),
   type: z.enum(entryTypes).optional(),
   tags: z.array(z.string().trim().max(50)).max(20).optional(),
   entryDate: z.coerce.date().optional(),
@@ -100,7 +100,7 @@ export const categoryUpdateSchema = categoryCreateSchema
 
 export const listQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(10000).default(500),
+  limit: z.coerce.number().min(1).max(200).default(50),
   sort: z.string().default("-createdAt"),
   type: z.string().optional(),
   search: z.string().optional(),
@@ -114,15 +114,18 @@ export const listQuerySchema = z.object({
 });
 
 export const exportSelectionSchema = z.object({
-  entryIds: z.array(z.string().trim().min(1)).max(10000).optional(),
+  entryIds: z.array(z.string().trim().min(1)).max(1000).optional(),
   scope: z.enum(["all", "month", "year", "custom", "selected"]).default("all"),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
   type: z.string().optional(),
-  favorite: z.boolean().optional(),
-  pinned: z.boolean().optional(),
+  favorite: z.preprocess((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined), z.boolean().optional()),
+  pinned: z.preprocess((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined), z.boolean().optional()),
   tags: z.string().optional(),
   sort: z.string().default("-entryDate"),
+  sortOrder: z.string().optional(),
 });
 
 export const backupRestoreSchema = z.object({
@@ -136,11 +139,11 @@ export const backupRestoreSchema = z.object({
 export const validate = (schema) => (req, res, next) => {
   try {
     const parsed = schema.parse({
-      ...req.body,
       ...req.query,
       ...req.params,
+      ...req.body,
     });
-    if (req.body && Object.keys(parsed).length) req.validated = parsed;
+    req.validated = parsed;
     next();
   } catch (err) {
     if (err instanceof z.ZodError) {

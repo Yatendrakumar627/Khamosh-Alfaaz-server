@@ -1,8 +1,16 @@
+import mongoose from "mongoose";
 import * as entryService from "../services/entryService.js";
 import * as exportService from "../services/exportService.js";
 import Visitor from "../models/Visitor.js";
-import { entryCreateSchema, entryUpdateSchema, listQuerySchema } from "../validators/schemas.js";
+import { entryCreateSchema, entryUpdateSchema, listQuerySchema, exportSelectionSchema } from "../validators/schemas.js";
 import { AppError } from "../utils/errors.js";
+
+function validateObjectId(id) {
+  if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+    throw new AppError("Invalid identifier", 400);
+  }
+  return id;
+}
 
 function sanitize(name) {
   return String(name || "entry").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60) || "entry";
@@ -20,7 +28,8 @@ export async function listEntriesHandler(req, res, next) {
 
 export async function getEntryHandler(req, res, next) {
   try {
-    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await entryService.getEntry(req.visitor._id, id);
     res.json({ ok: true, entry });
   } catch (err) {
     next(err);
@@ -39,8 +48,9 @@ export async function createEntryHandler(req, res, next) {
 
 export async function updateEntryHandler(req, res, next) {
   try {
+    const id = validateObjectId(req.params.id);
     const data = entryUpdateSchema.parse(req.body);
-    const entry = await entryService.updateEntry(req.visitor._id, req.params.id, data);
+    const entry = await entryService.updateEntry(req.visitor._id, id, data);
     res.json({ ok: true, entry });
   } catch (err) {
     next(err);
@@ -49,7 +59,8 @@ export async function updateEntryHandler(req, res, next) {
 
 export async function deleteEntryHandler(req, res, next) {
   try {
-    await entryService.deleteEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    await entryService.deleteEntry(req.visitor._id, id);
     res.json({ ok: true, deleted: true });
   } catch (err) {
     next(err);
@@ -58,8 +69,9 @@ export async function deleteEntryHandler(req, res, next) {
 
 export async function favoriteHandler(req, res, next) {
   try {
+    const id = validateObjectId(req.params.id);
     const value = Boolean(req.body.isFavorite);
-    const entry = await entryService.toggleFavorite(req.visitor._id, req.params.id, value);
+    const entry = await entryService.toggleFavorite(req.visitor._id, id, value);
     res.json({ ok: true, entry });
   } catch (err) {
     next(err);
@@ -68,8 +80,9 @@ export async function favoriteHandler(req, res, next) {
 
 export async function pinHandler(req, res, next) {
   try {
+    const id = validateObjectId(req.params.id);
     const value = Boolean(req.body.isPinned);
-    const entry = await entryService.togglePinned(req.visitor._id, req.params.id, value);
+    const entry = await entryService.togglePinned(req.visitor._id, id, value);
     res.json({ ok: true, entry });
   } catch (err) {
     next(err);
@@ -115,7 +128,8 @@ async function getVisitorName(visitorId) {
 
 export async function exportEntryDocxHandler(req, res, next) {
   try {
-    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await entryService.getEntry(req.visitor._id, id);
     const visitorName = await getVisitorName(req.visitor._id);
     const buffer = await exportService.buildDocxBuffer({
       title: entry.title,
@@ -132,7 +146,8 @@ export async function exportEntryDocxHandler(req, res, next) {
 
 export async function exportEntryPdfHandler(req, res, next) {
   try {
-    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await entryService.getEntry(req.visitor._id, id);
     const visitorName = await getVisitorName(req.visitor._id);
     const buffer = await exportService.buildPdfBuffer({
       title: entry.title,
@@ -149,7 +164,8 @@ export async function exportEntryPdfHandler(req, res, next) {
 
 export async function exportEntryTxtHandler(req, res, next) {
   try {
-    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await entryService.getEntry(req.visitor._id, id);
     const visitorName = await getVisitorName(req.visitor._id);
     const buffer = exportService.buildTxtBuffer({
       entries: [entry],
@@ -165,7 +181,8 @@ export async function exportEntryTxtHandler(req, res, next) {
 
 export async function exportEntryMdHandler(req, res, next) {
   try {
-    const entry = await entryService.getEntry(req.visitor._id, req.params.id);
+    const id = validateObjectId(req.params.id);
+    const entry = await entryService.getEntry(req.visitor._id, id);
     const visitorName = await getVisitorName(req.visitor._id);
     const buffer = exportService.buildMdBuffer({
       entries: [entry],
@@ -181,7 +198,7 @@ export async function exportEntryMdHandler(req, res, next) {
 
 export async function exportBulkDocxHandler(req, res, next) {
   try {
-    const payload = { ...req.query, ...req.body };
+    const payload = exportSelectionSchema.parse({ ...req.query, ...req.body });
     const sortOrder = payload.sortOrder || payload.sort || "newest";
     const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
@@ -202,7 +219,7 @@ export async function exportBulkDocxHandler(req, res, next) {
 
 export async function exportBulkPdfHandler(req, res, next) {
   try {
-    const payload = { ...req.query, ...req.body };
+    const payload = exportSelectionSchema.parse({ ...req.query, ...req.body });
     const sortOrder = payload.sortOrder || payload.sort || "newest";
     const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
@@ -223,7 +240,7 @@ export async function exportBulkPdfHandler(req, res, next) {
 
 export async function exportBulkTxtHandler(req, res, next) {
   try {
-    const payload = { ...req.query, ...req.body };
+    const payload = exportSelectionSchema.parse({ ...req.query, ...req.body });
     const sortOrder = payload.sortOrder || payload.sort || "newest";
     const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
@@ -243,7 +260,7 @@ export async function exportBulkTxtHandler(req, res, next) {
 
 export async function exportBulkMdHandler(req, res, next) {
   try {
-    const payload = { ...req.query, ...req.body };
+    const payload = exportSelectionSchema.parse({ ...req.query, ...req.body });
     const sortOrder = payload.sortOrder || payload.sort || "newest";
     const entries = await entryService.getEntriesForExport(req.visitor._id, payload);
     const visitorName = await getVisitorName(req.visitor._id);
@@ -255,8 +272,6 @@ export async function exportBulkMdHandler(req, res, next) {
     });
     res.setHeader("Content-Type", "text/markdown; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="khamosh-alfaaz-diary-${dateStr}.md"`);
-    res.send(buffer);
-
     res.send(buffer);
   } catch (err) {
     next(err);

@@ -19,6 +19,7 @@ const entrySchema = new mongoose.Schema(
       required: [true, "Content is required"],
       trim: true,
       minlength: [1, "Content must not be empty"],
+      maxlength: [100000, "Content must be at most 100,000 characters"],
     },
     type: {
       type: String,

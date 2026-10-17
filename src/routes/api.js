@@ -6,7 +6,7 @@ import * as backupController from "../sessions/backupController.js";
 import * as statisticsController from "../sessions/statisticsController.js";
 import * as publicController from "../sessions/publicController.js";
 import { requireSession, requirePin } from "../middleware/session.js";
-import { apiLimiter, sessionLimiter, exportLimiter, destructiveLimiter } from "../middleware/ratelimit.js";
+import { apiLimiter, sessionLimiter, loginLimiter, exportLimiter, destructiveLimiter } from "../middleware/ratelimit.js";
 import { validate, entryCreateSchema, entryUpdateSchema, sessionRegisterSchema, sessionLoginSchema, sessionPinSchema, sessionUsernameSchema, sessionNameSchema, categoryCreateSchema, categoryUpdateSchema, favoriteSchema, pinSchema } from "../validators/schemas.js";
 import { asyncHandler } from "../utils/errors.js";
 
@@ -22,10 +22,10 @@ router.get("/public/quotes", asyncHandler(publicController.publicQuotesHandler))
 router.get("/public/categories", asyncHandler(publicController.publicCategoriesHandler));
 
 // Session
-router.get("/session/username", sessionLimiter, validate(sessionUsernameSchema), asyncHandler(sessionController.usernameAvailabilityHandler));
+router.get("/session/username", apiLimiter, validate(sessionUsernameSchema), asyncHandler(sessionController.usernameAvailabilityHandler));
 router.post("/session", sessionLimiter, validate(sessionRegisterSchema), asyncHandler(sessionController.registerSessionHandler));
 router.post("/session/register", sessionLimiter, validate(sessionRegisterSchema), asyncHandler(sessionController.registerSessionHandler));
-router.post("/session/login", sessionLimiter, validate(sessionLoginSchema), asyncHandler(sessionController.loginSessionHandler));
+router.post("/session/login", loginLimiter, validate(sessionLoginSchema), asyncHandler(sessionController.loginSessionHandler));
 router.get("/session", requireSession, asyncHandler(sessionController.getSessionHandler));
 router.patch("/session/name", requireSession, validate(sessionNameSchema), asyncHandler(sessionController.patchSessionHandler));
 router.delete("/session", requireSession, asyncHandler(sessionController.deleteSessionHandler));

@@ -19,6 +19,16 @@ const SORT_MAP = {
   createdAt: "createdAt",
 };
 
+function sanitizeSearchText(text) {
+  if (typeof text !== "string") return "";
+  let clean = text.trim().slice(0, 200);
+  const quoteCount = (clean.match(/"/g) || []).length;
+  if (quoteCount % 2 !== 0) {
+    clean = clean.replace(/"/g, " ");
+  }
+  return clean.trim();
+}
+
 export async function listPublicEntries(query = {}) {
   const {
     page = 1,
@@ -37,8 +47,8 @@ export async function listPublicEntries(query = {}) {
   }
 
   let mongoQuery;
-  if (search && search.trim()) {
-    const searchText = search.trim();
+  const searchText = sanitizeSearchText(search);
+  if (searchText) {
     mongoQuery = Entry.find({
       ...filter,
       $text: { $caseSensitive: false, $diacriticSensitive: false, $search: searchText },
@@ -73,7 +83,37 @@ export async function getPublicEntry(id) {
     .select(publicProjection)
     .lean();
   if (!entry) throw new AppError("Entry not found", 404);
-  return entry;
+
+  const curDate = entry.entryDate || entry.createdAt;
+
+  const [prev, next] = await Promise.all([
+    Entry.findOne({
+      visibility: "public",
+      $or: [
+        { entryDate: { $lt: curDate } },
+        { entryDate: curDate, _id: { $lt: entry._id } },
+      ],
+    })
+      .sort({ entryDate: -1, _id: -1 })
+      .select("_id title entryDate type")
+      .lean(),
+    Entry.findOne({
+      visibility: "public",
+      $or: [
+        { entryDate: { $gt: curDate } },
+        { entryDate: curDate, _id: { $gt: entry._id } },
+      ],
+    })
+      .sort({ entryDate: 1, _id: 1 })
+      .select("_id title entryDate type")
+      .lean(),
+  ]);
+
+  return {
+    ...entry,
+    prevEntry: prev || null,
+    nextEntry: next || null,
+  };
 }
 
 export async function publicQuotes(limit = 30) {

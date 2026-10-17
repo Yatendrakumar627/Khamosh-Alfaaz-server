@@ -13,15 +13,25 @@ export const notFound = (req, res, next) => {
 };
 
 export const errorHandler = (err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   if (err.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Invalid JSON in request body" });
   }
+
+  if (err.status === 413 || err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request payload too large" });
+  }
+
   if (err.name === "ZodError") {
     const details = Object.fromEntries(
       err.errors.map((e) => [e.path.join(".") || "body", e.message]),
     );
     return res.status(400).json({ error: "Validation failed", details });
   }
+
   if (!(err instanceof AppError)) {
     // Mongoose validation error
     if (err.name === "ValidationError") {
@@ -36,7 +46,7 @@ export const errorHandler = (err, req, res, next) => {
     }
     // Mongo duplicate key
     if (err.code === 11000) {
-      const field = Object.keys(err.keyValue)[0] || "field";
+      const field = (err.keyValue && Object.keys(err.keyValue)[0]) || "field";
       return res.status(409).json({ error: `${field} already exists` });
     }
     // Mongo connection / server error

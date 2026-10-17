@@ -4,8 +4,46 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import apiRouter from "./routes/api.js";
-import { notFound, errorHandler } from "./utils/errors.js";
+import { notFound, errorHandler, AppError } from "./utils/errors.js";
 import { apiLimiter } from "./middleware/ratelimit.js";
+
+function csrfProtection(req, res, next) {
+  const mutatingMethods = ["POST", "PUT", "PATCH", "DELETE"];
+  if (!mutatingMethods.includes(req.method)) {
+    return next();
+  }
+
+  // Requests using custom Authorization or session headers are not vulnerable to browser CSRF
+  if (req.headers.authorization || req.headers["x-session-token"]) {
+    return next();
+  }
+
+  const origin = req.headers.origin;
+  if (origin) {
+    if (!env.clientOrigins.includes(origin)) {
+      return next(new AppError("Cross-origin request blocked", 403));
+    }
+    return next();
+  }
+
+  const referer = req.headers.referer;
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (!env.clientOrigins.includes(refererOrigin)) {
+        return next(new AppError("Cross-origin request blocked", 403));
+      }
+    } catch {
+      return next(new AppError("Invalid request source", 403));
+    }
+  }
+
+  if (req.headers["sec-fetch-site"] === "cross-site") {
+    return next(new AppError("Cross-site request blocked", 403));
+  }
+
+  next();
+}
 
 export function createApp() {
   const app = express();
@@ -16,6 +54,8 @@ export function createApp() {
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
+      frameguard: { action: "deny" },
+      noSniff: true,
     }),
   );
 
@@ -25,13 +65,15 @@ export function createApp() {
         if (!origin || env.clientOrigins.includes(origin)) {
           return callback(null, true);
         }
-        return callback(null, false);
+        return callback(new AppError("CORS origin not allowed", 403));
       },
       credentials: true,
       methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type"],
+      allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Requested-With", "x-session-token"],
     }),
   );
+
+  app.use(csrfProtection);
 
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: false, limit: "2mb" }));
