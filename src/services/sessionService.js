@@ -168,5 +168,6 @@ export async function getStatistics(visitorId) {
     firstEntry: oldest ? oldest.entryDate : null,
     lastEntry: newest ? newest.entryDate : null,
     longestStreak,
+    currentStreak: currentStreak || 0,
   };
 }
