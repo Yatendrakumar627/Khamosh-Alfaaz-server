@@ -118,7 +118,37 @@ export async function listEntries(visitorId, query) {
 export async function getEntry(visitorId, id) {
   const entry = await Entry.findOne({ _id: id, visitorId }).lean();
   if (!entry) throw new AppError("Entry not found", 404);
-  return entry;
+
+  const curDate = entry.entryDate || entry.createdAt;
+
+  const [prev, next] = await Promise.all([
+    Entry.findOne({
+      visitorId,
+      $or: [
+        { entryDate: { $lt: curDate } },
+        { entryDate: curDate, _id: { $lt: entry._id } },
+      ],
+    })
+      .sort({ entryDate: -1, _id: -1 })
+      .select("_id title entryDate type")
+      .lean(),
+    Entry.findOne({
+      visitorId,
+      $or: [
+        { entryDate: { $gt: curDate } },
+        { entryDate: curDate, _id: { $gt: entry._id } },
+      ],
+    })
+      .sort({ entryDate: 1, _id: 1 })
+      .select("_id title entryDate type")
+      .lean(),
+  ]);
+
+  return {
+    ...entry,
+    prevEntry: prev || null,
+    nextEntry: next || null,
+  };
 }
 
 export async function createEntry(visitorId, data) {
