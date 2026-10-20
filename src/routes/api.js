@@ -5,6 +5,7 @@ import * as categoryController from "../sessions/categoryController.js";
 import * as backupController from "../sessions/backupController.js";
 import * as statisticsController from "../sessions/statisticsController.js";
 import * as publicController from "../sessions/publicController.js";
+import * as sttController from "../sessions/sttController.js";
 import { requireSession, requirePin } from "../middleware/session.js";
 import { apiLimiter, sessionLimiter, loginLimiter, exportLimiter, destructiveLimiter } from "../middleware/ratelimit.js";
 import { validate, entryCreateSchema, entryUpdateSchema, sessionRegisterSchema, sessionLoginSchema, sessionPinSchema, sessionUsernameSchema, sessionNameSchema, categoryCreateSchema, categoryUpdateSchema, favoriteSchema, pinSchema } from "../validators/schemas.js";
@@ -70,5 +71,8 @@ router.post("/backup/reset", requireSession, destructiveLimiter, validate(sessio
 
 // Statistics
 router.get("/statistics", requireSession, asyncHandler(statisticsController.statisticsHandler));
+
+// Speech-to-Text Universal Audio Transcription
+router.post("/stt/transcribe", asyncHandler(sttController.transcribeAudioHandler));
 
 export default router;

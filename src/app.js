@@ -77,8 +77,8 @@ export function createApp() {
   app.use(compression());
   app.use(csrfProtection);
 
-  app.use(express.json({ limit: "2mb" }));
-  app.use(express.urlencoded({ extended: false, limit: "2mb" }));
+  app.use(express.json({ limit: "15mb" }));
+  app.use(express.urlencoded({ extended: false, limit: "15mb" }));
   app.use(cookieParser(env.sessionSecret));
 
   // Health check endpoint (exempt from rate limiter for keep-alive pings)
