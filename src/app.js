@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import compression from "compression";
+import mongoose from "mongoose";
 import { env } from "./config/env.js";
 import apiRouter from "./routes/api.js";
 import { notFound, errorHandler, AppError } from "./utils/errors.js";
@@ -82,9 +83,17 @@ export function createApp() {
   app.use(cookieParser(env.sessionSecret));
 
   // Health check endpoint (exempt from rate limiter for keep-alive pings)
-  app.get("/api/health", (req, res) =>
-    res.json({ ok: true, status: "healthy", uptime: process.uptime(), timestamp: new Date().toISOString() }),
-  );
+  app.get("/api/health", (req, res) => {
+    const dbState = mongoose.connection.readyState;
+    const dbStatus = dbState === 1 ? "connected" : dbState === 2 ? "connecting" : "disconnected";
+    res.json({
+      ok: true,
+      status: "healthy",
+      database: dbStatus,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // Cache-Control headers for public content (quotes, public entries, categories)
   app.use("/api/public", (req, res, next) => {

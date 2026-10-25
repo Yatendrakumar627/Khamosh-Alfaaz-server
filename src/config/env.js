@@ -7,7 +7,16 @@ export function getEnv() {
       .map((s) => s.trim())
       .filter(Boolean),
     PRODUCTION_CLIENT_URL,
-    ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173"]),
+    ...(process.env.NODE_ENV === "production"
+      ? []
+      : [
+          "http://localhost:5173",
+          "http://localhost:5174",
+          "http://localhost:5175",
+          "http://127.0.0.1:5173",
+          "http://127.0.0.1:5174",
+          "http://127.0.0.1:5175",
+        ]),
   ];
 
   const uniqueOrigins = [...new Set(clientUrls)];
