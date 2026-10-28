@@ -23,7 +23,7 @@ export async function createCategoryHandler(req, res, next) {
   try {
     const data = categoryCreateSchema.parse(req.body);
     const { category, created } = await categoryService.createCategory(req.visitor._id, data.name);
-    res.status(created ? 201 : 200).json({ ok: true, category });
+    res.status(created ? 201 : 200).json({ ok: true, category, created });
   } catch (err) {
     next(err);
   }

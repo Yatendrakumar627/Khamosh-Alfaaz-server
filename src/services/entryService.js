@@ -84,11 +84,19 @@ export async function listEntries(visitorId, query) {
       const start = new Date(Math.min(utcStart.getTime(), localStart.getTime()));
       const end = new Date(Math.max(utcEnd.getTime(), localEnd.getTime()));
 
-      filter.$or = [
+      const dateOr = [
         { entryDate: { $gte: start, $lte: end } },
         { entryDate: null, createdAt: { $gte: start, $lte: end } },
         { entryDate: { $exists: false }, createdAt: { $gte: start, $lte: end } },
       ];
+      if (filter.$and) {
+        filter.$and.push({ $or: dateOr });
+      } else if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: dateOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = dateOr;
+      }
     }
   }
   if (tags) {
@@ -214,7 +222,7 @@ export async function togglePinned(visitorId, id, value) {
 }
 
 export async function calendarEntries(visitorId, month) {
-  if (!/^\d{4}-\d{2}$/.test(month)) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     throw new AppError("month query must be YYYY-MM", 400);
   }
   const [year, m] = String(month).split("-").map(Number);
@@ -311,12 +319,20 @@ export async function getEntriesForExport(visitorId, payload = {}) {
   if (payload.type) {
     const cleanType = String(payload.type).toLowerCase().trim();
     if (cleanType === "diary") {
-      filter.$or = [
+      const typeOr = [
         { type: "diary" },
         { type: { $exists: false } },
         { type: null },
         { type: "" },
       ];
+      if (filter.$and) {
+        filter.$and.push({ $or: typeOr });
+      } else if (filter.$or) {
+        filter.$and = [{ $or: filter.$or }, { $or: typeOr }];
+        delete filter.$or;
+      } else {
+        filter.$or = typeOr;
+      }
     } else {
       filter.type = cleanType;
     }

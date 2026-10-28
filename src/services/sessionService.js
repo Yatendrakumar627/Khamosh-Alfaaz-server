@@ -151,7 +151,7 @@ export async function getStatistics(visitorId) {
     if (lastDate) {
       const prev = new Date(lastDate);
       const cur = new Date(d);
-      const diff = (cur - prev) / (1000 * 60 * 60 * 24);
+      const diff = Math.round((cur - prev) / (1000 * 60 * 60 * 24));
       if (diff === 1) {
         activeStreak += 1;
       } else {

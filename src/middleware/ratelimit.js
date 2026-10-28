@@ -39,3 +39,11 @@ export const destructiveLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many destructive requests. Please try again later." },
 });
+
+export const sttLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many transcription requests. Please slow down." },
+});

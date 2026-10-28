@@ -7,21 +7,43 @@ export async function listCategories(visitorId) {
 
 export async function createCategory(visitorId, name) {
   const safeName = String(name || "").trim().slice(0, 60);
+  if (!safeName) {
+    throw new AppError("Category name is required", 400);
+  }
   const escaped = safeName.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
   const existing = await Category.findOne({ visitorId, name: new RegExp(`^${escaped}$`, "i") });
   if (existing) return { category: existing.toObject(), created: false };
-  const cat = await Category.create({ visitorId, name: safeName });
-  return { category: cat.toObject(), created: true };
+  try {
+    const cat = await Category.create({ visitorId, name: safeName });
+    return { category: cat.toObject(), created: true };
+  } catch (err) {
+    if (err?.code === 11000) {
+      const raceExisting = await Category.findOne({ visitorId, name: new RegExp(`^${escaped}$`, "i") });
+      if (raceExisting) return { category: raceExisting.toObject(), created: false };
+    }
+    throw err;
+  }
 }
 
 export async function updateCategory(visitorId, id, name) {
-  const cat = await Category.findOneAndUpdate(
-    { _id: id, visitorId },
-    { $set: { name } },
-    { new: true, runValidators: true },
-  ).lean();
-  if (!cat) throw new AppError("Category not found", 404);
-  return cat;
+  const safeName = String(name || "").trim().slice(0, 60);
+  if (!safeName) {
+    throw new AppError("Category name is required", 400);
+  }
+  try {
+    const cat = await Category.findOneAndUpdate(
+      { _id: id, visitorId },
+      { $set: { name: safeName } },
+      { new: true, runValidators: true },
+    ).lean();
+    if (!cat) throw new AppError("Category not found", 404);
+    return cat;
+  } catch (err) {
+    if (err?.code === 11000) {
+      throw new AppError("A category with this name already exists", 409);
+    }
+    throw err;
+  }
 }
 
 export async function deleteCategory(visitorId, id) {

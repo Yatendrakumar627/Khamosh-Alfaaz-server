@@ -23,6 +23,7 @@ export function verifyPin(pin, storedHash) {
   try {
     const salt = Buffer.from(saltHex, "hex");
     const expected = Buffer.from(hashHex, "hex");
+    if (salt.length === 0 || expected.length === 0) return false;
     const actual = crypto.scryptSync(pin, salt, expected.length);
     return expected.length === actual.length && crypto.timingSafeEqual(actual, expected);
   } catch {
@@ -41,5 +42,5 @@ export function sanitizeString(value, maxLen) {
 
 export function sanitizeTags(tags, maxLen) {
   if (!Array.isArray(tags)) return [];
-  return [...new Set(tags.map((t) => sanitizeString(String(t), maxLen)))];
+  return [...new Set(tags.map((t) => sanitizeString(String(t), maxLen)).filter(Boolean))];
 }

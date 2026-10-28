@@ -91,7 +91,7 @@ export async function pinHandler(req, res, next) {
 
 export async function searchHandler(req, res, next) {
   try {
-    const query = listQuerySchema.parse({ ...req.query, search: req.query.q });
+    const query = listQuerySchema.parse({ ...req.query, search: req.query.q || req.query.search });
     const result = await entryService.listEntries(req.visitor._id, query);
     res.json({ ok: true, ...result });
   } catch (err) {
@@ -102,7 +102,7 @@ export async function searchHandler(req, res, next) {
 export async function calendarHandler(req, res, next) {
   try {
     const month = String(req.query.month || "");
-    if (!/^\d{4}-\d{2}$/.test(month)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
       return next(new AppError("month query must be YYYY-MM", 400));
     }
     const result = await entryService.calendarEntries(req.visitor._id, month);

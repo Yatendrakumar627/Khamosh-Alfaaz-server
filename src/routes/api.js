@@ -7,7 +7,7 @@ import * as statisticsController from "../sessions/statisticsController.js";
 import * as publicController from "../sessions/publicController.js";
 import * as sttController from "../sessions/sttController.js";
 import { requireSession, requirePin } from "../middleware/session.js";
-import { apiLimiter, sessionLimiter, loginLimiter, exportLimiter, destructiveLimiter } from "../middleware/ratelimit.js";
+import { apiLimiter, sessionLimiter, loginLimiter, exportLimiter, destructiveLimiter, sttLimiter } from "../middleware/ratelimit.js";
 import { validate, entryCreateSchema, entryUpdateSchema, sessionRegisterSchema, sessionLoginSchema, sessionPinSchema, sessionUsernameSchema, sessionNameSchema, categoryCreateSchema, categoryUpdateSchema, favoriteSchema, pinSchema } from "../validators/schemas.js";
 import { asyncHandler } from "../utils/errors.js";
 
@@ -73,6 +73,6 @@ router.post("/backup/reset", requireSession, destructiveLimiter, validate(sessio
 router.get("/statistics", requireSession, asyncHandler(statisticsController.statisticsHandler));
 
 // Speech-to-Text Universal Audio Transcription
-router.post("/stt/transcribe", asyncHandler(sttController.transcribeAudioHandler));
+router.post("/stt/transcribe", sttLimiter, asyncHandler(sttController.transcribeAudioHandler));
 
 export default router;
