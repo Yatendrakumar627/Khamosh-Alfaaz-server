@@ -114,7 +114,15 @@ export const listQuerySchema = z.object({
 });
 
 export const exportSelectionSchema = z.object({
-  entryIds: z.array(z.string().trim().min(1)).max(1000).optional(),
+  entryIds: z.preprocess(
+    (val) => {
+      if (typeof val === "string") {
+        return val.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      return val;
+    },
+    z.array(z.string().trim().min(1)).max(1000).optional(),
+  ),
   scope: z.enum(["all", "month", "year", "custom", "selected"]).default("all"),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),

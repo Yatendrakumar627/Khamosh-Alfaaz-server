@@ -114,7 +114,7 @@ export async function calendarHandler(req, res, next) {
 
 export async function onThisDayHandler(req, res, next) {
   try {
-    const result = await entryService.onThisDay(req.visitor._id);
+    const result = await entryService.onThisDay(req.visitor._id, req.query);
     res.json({ ok: true, ...result });
   } catch (err) {
     next(err);

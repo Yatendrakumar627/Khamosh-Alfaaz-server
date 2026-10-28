@@ -239,14 +239,15 @@ export async function calendarEntries(visitorId, month) {
   return { month, year, byDay, entries };
 }
 
-export async function onThisDay(visitorId) {
+export async function onThisDay(visitorId, options = {}) {
   const today = new Date();
-  const currentMonth = today.getMonth() + 1;
-  const currentDay = today.getDate();
-  const currentYear = today.getFullYear();
+  const currentMonth = Number(options.month) || (today.getMonth() + 1);
+  const currentDay = Number(options.day) || today.getDate();
+  const currentYear = Number(options.year) || today.getFullYear();
 
   const memories = await Entry.find({
     visitorId,
+    entryDate: { $type: "date" },
     $expr: {
       $and: [
         { $eq: [{ $month: "$entryDate" }, currentMonth] },

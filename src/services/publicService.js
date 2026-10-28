@@ -84,7 +84,7 @@ export async function getPublicEntry(id) {
     .lean();
   if (!entry) throw new AppError("Entry not found", 404);
 
-  const curDate = entry.entryDate || entry.createdAt;
+  const curDate = entry.entryDate || entry.createdAt || new Date();
 
   const [prev, next] = await Promise.all([
     Entry.findOne({
