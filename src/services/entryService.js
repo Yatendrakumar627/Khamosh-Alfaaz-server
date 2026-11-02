@@ -117,12 +117,25 @@ export async function listEntries(visitorId, query) {
   }
 
   const sortKey = SORT_MAP[sort] || "-createdAt";
-  const total = await Entry.countDocuments(mongoQuery.getFilter());
-  const entries = await mongoQuery
-    .sort(sortKey)
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .lean();
+
+  if (query.fields && typeof query.fields === "string") {
+    const allowed = query.fields
+      .split(",")
+      .map((f) => f.trim())
+      .filter((f) => !f.startsWith("+") && !f.startsWith("-") && f.length < 50);
+    if (allowed.length) {
+      mongoQuery = mongoQuery.select(allowed.join(" "));
+    }
+  }
+
+  const [total, entries] = await Promise.all([
+    Entry.countDocuments(mongoQuery.getFilter()),
+    mongoQuery
+      .sort(sortKey)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+  ]);
 
   return {
     entries,

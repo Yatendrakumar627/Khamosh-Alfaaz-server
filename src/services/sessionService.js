@@ -125,8 +125,8 @@ export async function getStatistics(visitorId) {
     ]),
     Entry.countDocuments({ visitorId, isFavorite: true }),
     Entry.countDocuments({ visitorId, isPinned: true }),
-    Entry.findOne({ visitorId }).sort({ entryDate: 1 }).lean(),
-    Entry.findOne({ visitorId }).sort({ entryDate: -1 }).lean(),
+    Entry.findOne({ visitorId }).sort({ entryDate: 1 }).select("entryDate").lean(),
+    Entry.findOne({ visitorId }).sort({ entryDate: -1 }).select("entryDate").lean(),
     Entry.aggregate([
       { $match: { visitorId } },
       { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$entryDate" } }, count: { $sum: 1 } } },

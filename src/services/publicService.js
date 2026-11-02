@@ -58,13 +58,15 @@ export async function listPublicEntries(query = {}) {
   }
 
   const sortKey = SORT_MAP[sort] || "-entryDate";
-  const total = await Entry.countDocuments(mongoQuery.getFilter());
-  const entries = await mongoQuery
-    .sort(sortKey)
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .select(publicProjection)
-    .lean();
+  const [total, entries] = await Promise.all([
+    Entry.countDocuments(mongoQuery.getFilter()),
+    mongoQuery
+      .sort(sortKey)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select(publicProjection)
+      .lean(),
+  ]);
 
   return {
     entries,
