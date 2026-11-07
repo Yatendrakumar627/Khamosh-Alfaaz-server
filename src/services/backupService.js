@@ -2,6 +2,7 @@ import Entry from "../models/Entry.js";
 import Category from "../models/Category.js";
 import Visitor from "../models/Visitor.js";
 import { AppError } from "../utils/errors.js";
+import { invalidatePublicCache } from "./publicService.js";
 
 export async function exportBackup(visitorId) {
   const [entries, categories, visitor] = await Promise.all([
@@ -86,6 +87,7 @@ export async function restoreBackup(visitorId, payload, { wipeFirst = true } = {
   if (ops.length) {
     await Promise.all(ops);
   }
+  invalidatePublicCache();
 
   return { restored: true, entries: normalizedEntries.length, categories: normalizedCategories.length };
 }
@@ -95,6 +97,7 @@ export async function deleteAll(visitorId) {
     Entry.deleteMany({ visitorId }),
     Category.deleteMany({ visitorId }),
   ]);
+  invalidatePublicCache();
   return { deleted: true };
 }
 

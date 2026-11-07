@@ -1,10 +1,15 @@
 import rateLimit from "express-rate-limit";
+import { env } from "../config/env.js";
+
+const isDev = env.nodeEnv !== "production";
+const isLocalhost = (ip) => !ip || ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: isDev ? 10000 : 1500,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => isDev || isLocalhost(req.ip),
   message: { error: "Too many requests. Please try again later." },
 });
 

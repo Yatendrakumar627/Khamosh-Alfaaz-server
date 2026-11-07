@@ -68,6 +68,9 @@ entrySchema.index({ visitorId: 1, isPinned: 1, entryDate: -1 });
 entrySchema.index({ visitorId: 1, type: 1 });
 entrySchema.index({ visibility: 1, createdAt: -1 });
 entrySchema.index({ visibility: 1, type: 1, createdAt: -1 });
+entrySchema.index({ visibility: 1, entryDate: -1 });
+entrySchema.index({ visibility: 1, type: 1, entryDate: -1 });
+entrySchema.index({ visitorId: 1, isPinned: -1, entryDate: -1 });
 entrySchema.index({ title: "text", content: "text", tags: "text", type: "text" });
 
 export default mongoose.model("Entry", entrySchema);

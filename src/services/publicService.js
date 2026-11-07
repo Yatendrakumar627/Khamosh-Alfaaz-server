@@ -1,5 +1,10 @@
 import Entry from "../models/Entry.js";
 import { AppError } from "../utils/errors.js";
+import { cache } from "../utils/cache.js";
+
+export function invalidatePublicCache() {
+  cache.invalidatePrefix("public:");
+}
 
 const publicProjection = {
   visitorId: 0,
@@ -30,6 +35,10 @@ function sanitizeSearchText(text) {
 }
 
 export async function listPublicEntries(query = {}) {
+  const cacheKey = `public:entries:${JSON.stringify(query)}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const {
     page = 1,
     limit = 20,
@@ -68,7 +77,7 @@ export async function listPublicEntries(query = {}) {
       .lean(),
   ]);
 
-  return {
+  const result = {
     entries,
     pagination: {
       page: Number(page),
@@ -78,9 +87,16 @@ export async function listPublicEntries(query = {}) {
       totalPages: Math.ceil(total / limit) || 1,
     },
   };
+
+  cache.set(cacheKey, result, 60);
+  return result;
 }
 
 export async function getPublicEntry(id) {
+  const cacheKey = `public:entry:${id}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const entry = await Entry.findOne({ _id: id, visibility: "public" })
     .select(publicProjection)
     .lean();
@@ -111,28 +127,43 @@ export async function getPublicEntry(id) {
       .lean(),
   ]);
 
-  return {
+  const result = {
     ...entry,
     prevEntry: prev || null,
     nextEntry: next || null,
   };
+  cache.set(cacheKey, result, 60);
+  return result;
 }
 
 export async function publicQuotes(limit = 30) {
+  const safeLimit = Math.min(Number(limit) || 30, 100);
+  const cacheKey = `public:quotes:${safeLimit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const entries = await Entry.find({ visibility: "public", type: "quote" })
     .sort({ entryDate: -1 })
-    .limit(Math.min(Number(limit) || 30, 100))
+    .limit(safeLimit)
     .select(publicProjection)
     .lean();
-  return { entries };
+  const result = { entries };
+  cache.set(cacheKey, result, 60);
+  return result;
 }
 
 export async function publicCategories() {
+  const cacheKey = "public:categories";
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const groups = await Entry.aggregate([
     { $match: { visibility: "public" } },
     { $group: { _id: "$type", count: { $sum: 1 } } },
     { $sort: { count: -1, _id: 1 } },
   ]);
   const categories = groups.map((g) => ({ type: g._id, count: g.count }));
-  return { categories };
+  const result = { categories };
+  cache.set(cacheKey, result, 60);
+  return result;
 }

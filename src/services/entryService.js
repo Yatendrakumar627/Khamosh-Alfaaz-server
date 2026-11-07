@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Entry from "../models/Entry.js";
 import { AppError } from "../utils/errors.js";
+import { invalidatePublicCache } from "./publicService.js";
 
 function sanitizeSearchText(text) {
   if (typeof text !== "string") return "";
@@ -195,6 +196,9 @@ export async function createEntry(visitorId, data) {
     entryDate: data.entryDate || new Date(),
     visibility: data.visibility || "private",
   });
+  if (entry.visibility === "public") {
+    invalidatePublicCache();
+  }
   return entry.toObject();
 }
 
@@ -205,12 +209,14 @@ export async function updateEntry(visitorId, id, data) {
     { new: true, runValidators: true },
   ).lean();
   if (!entry) throw new AppError("Entry not found", 404);
+  invalidatePublicCache();
   return entry;
 }
 
 export async function deleteEntry(visitorId, id) {
   const result = await Entry.deleteOne({ _id: id, visitorId });
   if (result.deletedCount === 0) throw new AppError("Entry not found", 404);
+  invalidatePublicCache();
   return { deleted: true };
 }
 
