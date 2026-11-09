@@ -110,7 +110,7 @@ export async function requireSession(req, res, next) {
 }
 
 export async function requirePin(req, res, next) {
-  const pin = req.validated?.pin ?? req.body?.pin;
+  const pin = req.validated?.pin ?? req.body?.pin ?? req.headers?.["x-pin"] ?? req.query?.pin;
   if (!req.visitor?.pinHash || !verifyPin(pin, req.visitor.pinHash)) {
     return next(new AppError("PIN is incorrect", 401));
   }

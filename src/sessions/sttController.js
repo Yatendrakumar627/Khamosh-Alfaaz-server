@@ -16,9 +16,9 @@ export async function transcribeAudioHandler(req, res) {
     throw new AppError("Audio data is empty", 400);
   }
 
-  // Max 15MB audio payload safeguard
-  if (buffer.length > 15 * 1024 * 1024) {
-    throw new AppError("Audio file exceeds maximum size limit of 15MB", 400);
+  // Max 5MB audio payload safeguard (prevents memory spikes and OOM on container runtimes)
+  if (buffer.length > 5 * 1024 * 1024) {
+    throw new AppError("Audio file exceeds maximum size limit of 5MB", 400);
   }
 
   const result = await transcribeAudioBuffer({ buffer, mimeType, language });

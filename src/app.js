@@ -8,6 +8,7 @@ import { env } from "./config/env.js";
 import apiRouter from "./routes/api.js";
 import { notFound, errorHandler, AppError } from "./utils/errors.js";
 import { apiLimiter } from "./middleware/ratelimit.js";
+import { COOKIE_NAME } from "./middleware/session.js";
 
 function csrfProtection(req, res, next) {
   const mutatingMethods = ["POST", "PUT", "PATCH", "DELETE"];
@@ -35,6 +36,7 @@ function csrfProtection(req, res, next) {
       if (!env.clientOrigins.includes(refererOrigin)) {
         return next(new AppError("Cross-origin request blocked", 403));
       }
+      return next();
     } catch {
       return next(new AppError("Invalid request source", 403));
     }
@@ -42,6 +44,11 @@ function csrfProtection(req, res, next) {
 
   if (req.headers["sec-fetch-site"] === "cross-site") {
     return next(new AppError("Cross-site request blocked", 403));
+  }
+
+  // Mutating requests carrying a session cookie must present a verified Origin or Referer
+  if (req.cookies?.[COOKIE_NAME] || (req.headers.cookie && req.headers.cookie.includes(`${COOKIE_NAME}=`))) {
+    return next(new AppError("Cross-origin request blocked: Origin or Referer verification required", 403));
   }
 
   next();
@@ -76,11 +83,10 @@ export function createApp() {
   );
 
   app.use(compression());
-  app.use(csrfProtection);
-
-  app.use(express.json({ limit: "15mb" }));
-  app.use(express.urlencoded({ extended: false, limit: "15mb" }));
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: false, limit: "10mb" }));
   app.use(cookieParser(env.sessionSecret));
+  app.use(csrfProtection);
 
   // Health check endpoint (exempt from rate limiter for keep-alive pings)
   app.get("/api/health", (req, res) => {

@@ -1,5 +1,5 @@
 import * as sessionService from "../services/sessionService.js";
-import { COOKIE_NAME, createSession, deleteSessionToken, destroySession, getOptionalSession } from "../middleware/session.js";
+import { COOKIE_NAME, createSession, deleteSessionToken, destroySession, getOptionalSession, getSessionToken } from "../middleware/session.js";
 
 function responseVisitor(visitor) {
   return {
@@ -35,7 +35,10 @@ export async function registerSessionHandler(req, res, next) {
     });
 
     if (canClaimLegacyVisitor) {
-      await deleteSessionToken(req.cookies?.[COOKIE_NAME]);
+      const oldToken = getSessionToken(req);
+      if (oldToken) {
+        await deleteSessionToken(oldToken);
+      }
     }
     await startSession(req, res, result);
   } catch (err) {

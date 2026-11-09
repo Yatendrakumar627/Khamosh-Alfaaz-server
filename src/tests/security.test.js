@@ -7,6 +7,8 @@ import { connectDB } from "../config/db.js";
 import Visitor from "../models/Visitor.js";
 import Entry from "../models/Entry.js";
 import Session from "../models/Session.js";
+import Category from "../models/Category.js";
+import { cache } from "../utils/cache.js";
 import { hashPin, hashToken } from "../utils/crypto.js";
 
 describe("Comprehensive Security Audits & Defensive Testing", () => {
@@ -342,6 +344,118 @@ describe("Comprehensive Security Audits & Defensive Testing", () => {
       assert.equal(res.status, 400);
       assert.equal(res.body.error, "Invalid JSON in request body");
       assert.equal(res.body.stack, undefined);
+    });
+  });
+
+  describe("7. Security Audit Hardening & Regression Verification (SEC-01 to SEC-06)", () => {
+    test("SEC-01: /api/backup/restore is BLOCKED with 401 when PIN is missing or invalid", async () => {
+      // 1. Missing PIN entirely
+      const resNoPin = await request(app)
+        .post("/api/backup/restore")
+        .set("Authorization", `Bearer ${sessionTokenA}`)
+        .set("Origin", "http://localhost:5173")
+        .send({ entries: [] });
+
+      assert.equal(resNoPin.status, 401);
+      assert.equal(resNoPin.body.error, "PIN is incorrect");
+
+      // 2. Incorrect PIN
+      const resWrongPin = await request(app)
+        .post("/api/backup/restore")
+        .set("Authorization", `Bearer ${sessionTokenA}`)
+        .set("Origin", "http://localhost:5173")
+        .send({ entries: [], pin: "9999" });
+
+      assert.equal(resWrongPin.status, 401);
+      assert.equal(resWrongPin.body.error, "PIN is incorrect");
+
+      // 3. Correct PIN allows restore
+      const resValid = await request(app)
+        .post("/api/backup/restore")
+        .set("Authorization", `Bearer ${sessionTokenA}`)
+        .set("Origin", "http://localhost:5173")
+        .send({
+          pin: "1111",
+          entries: [
+            {
+              title: "Secured Restored Entry",
+              content: "This was restored safely after PIN validation.",
+              type: "diary",
+            },
+          ],
+        });
+
+      assert.equal(resValid.status, 200);
+      assert.equal(resValid.body.ok, true);
+      assert.equal(resValid.body.restored, true);
+    });
+
+    test("SEC-02: /api/stt/transcribe rejects unauthenticated access with 401", async () => {
+      const res = await request(app)
+        .post("/api/stt/transcribe")
+        .set("Origin", "http://localhost:5173")
+        .send({ audioBase64: "dGVzdA==" });
+
+      assert.equal(res.status, 401);
+    });
+
+    test("SEC-02: /api/stt/transcribe rejects oversized audio payloads (> 5MB) with 400", async () => {
+      // Create a dummy base64 string representing > 5MB
+      const oversizedBuffer = Buffer.alloc(5.5 * 1024 * 1024);
+      const res = await request(app)
+        .post("/api/stt/transcribe")
+        .set("Authorization", `Bearer ${sessionTokenA}`)
+        .set("Origin", "http://localhost:5173")
+        .send({ audioBase64: oversizedBuffer.toString("base64") });
+
+      assert.equal(res.status, 400);
+      assert.match(res.body.error, /exceeds maximum size limit/i);
+    });
+
+    test("SEC-03: In-memory ServerCache bounds maximum size to 500 entries (FIFO eviction)", () => {
+      cache.clear();
+      for (let i = 0; i < 600; i++) {
+        cache.set(`flood:key:${i}`, { data: i }, 60);
+      }
+      assert.ok(cache.cache.size <= 500, `Expected cache size <= 500, got ${cache.cache.size}`);
+      // The first 100 entries should have been evicted
+      assert.equal(cache.get("flood:key:0"), null);
+      // The newest key should still exist
+      assert.deepEqual(cache.get("flood:key:599"), { data: 599 });
+      cache.clear();
+    });
+
+    test("SEC-04: Mutating state change with cookie authentication and stripped Origin/Referer is blocked with 403", async () => {
+      const res = await request(app)
+        .post("/api/categories")
+        .set("Cookie", `dhsid=${sessionTokenA}`)
+        // Origin and Referer deliberately omitted (simulating referrer-stripping CSRF)
+        .send({ name: "CSRF Blocked Category" });
+
+      assert.equal(res.status, 403);
+      assert.match(res.body.error, /Origin or Referer verification required/i);
+    });
+
+    test("SEC-06: Category creation enforces hard ceiling of 50 categories per visitor", async () => {
+      // Clean categories for User A
+      await Category.deleteMany({ visitorId: userA._id });
+
+      // Create up to 50 categories
+      const categoryDocs = [];
+      for (let i = 1; i <= 50; i++) {
+        categoryDocs.push({ visitorId: userA._id, name: `Category_${i}` });
+      }
+      await Category.insertMany(categoryDocs);
+
+      // Attempting to create the 51st category must fail with 400
+      const res = await request(app)
+        .post("/api/categories")
+        .set("Authorization", `Bearer ${sessionTokenA}`)
+        .set("Origin", "http://localhost:5173")
+        .send({ name: "Category_51_Exceeds_Limit" });
+
+      assert.equal(res.status, 400);
+      assert.match(res.body.error, /Maximum limit of 50 categories reached/i);
     });
   });
 });

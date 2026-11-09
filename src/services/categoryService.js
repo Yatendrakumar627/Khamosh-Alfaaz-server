@@ -13,6 +13,13 @@ export async function createCategory(visitorId, name) {
   const escaped = safeName.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
   const existing = await Category.findOne({ visitorId, name: new RegExp(`^${escaped}$`, "i") });
   if (existing) return { category: existing.toObject(), created: false };
+
+  const MAX_CATEGORIES = 50;
+  const count = await Category.countDocuments({ visitorId });
+  if (count >= MAX_CATEGORIES) {
+    throw new AppError(`Maximum limit of ${MAX_CATEGORIES} categories reached`, 400);
+  }
+
   try {
     const cat = await Category.create({ visitorId, name: safeName });
     return { category: cat.toObject(), created: true };

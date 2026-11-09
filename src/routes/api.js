@@ -13,9 +13,6 @@ import { asyncHandler } from "../utils/errors.js";
 
 const router = Router();
 
-// Health (no auth)
-router.get("/health", asyncHandler(backupController.healthHandler));
-
 // Public (visitor mode — no auth; global apiLimiter already applies)
 router.get("/public/entries", asyncHandler(publicController.listPublicEntriesHandler));
 router.get("/public/entries/:id", asyncHandler(publicController.getPublicEntryHandler));
@@ -65,7 +62,7 @@ router.post("/export/md", requireSession, exportLimiter, asyncHandler(entryContr
 
 // Backup
 router.get("/backup", requireSession, asyncHandler(backupController.backupHandler));
-router.post("/backup/restore", requireSession, destructiveLimiter, asyncHandler(backupController.restoreHandler));
+router.post("/backup/restore", requireSession, destructiveLimiter, requirePin, asyncHandler(backupController.restoreHandler));
 router.post("/backup/delete-all", requireSession, destructiveLimiter, validate(sessionPinSchema), requirePin, asyncHandler(backupController.deleteAllHandler));
 router.post("/backup/reset", requireSession, destructiveLimiter, validate(sessionPinSchema), requirePin, asyncHandler(backupController.deleteAllHandler));
 
@@ -73,6 +70,6 @@ router.post("/backup/reset", requireSession, destructiveLimiter, validate(sessio
 router.get("/statistics", requireSession, asyncHandler(statisticsController.statisticsHandler));
 
 // Speech-to-Text Universal Audio Transcription
-router.post("/stt/transcribe", sttLimiter, asyncHandler(sttController.transcribeAudioHandler));
+router.post("/stt/transcribe", requireSession, sttLimiter, asyncHandler(sttController.transcribeAudioHandler));
 
 export default router;

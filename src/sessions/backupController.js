@@ -40,7 +40,3 @@ export async function deleteAllHandler(req, res, next) {
     next(err);
   }
 }
-
-export async function healthHandler(req, res) {
-  res.json({ ok: true, status: "healthy", uptime: process.uptime(), timestamp: new Date().toISOString() });
-}

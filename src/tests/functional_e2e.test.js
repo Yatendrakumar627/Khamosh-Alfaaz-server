@@ -510,7 +510,7 @@ describe("Comprehensive End-to-End Functional Test Suite", () => {
         .post("/api/backup/restore")
         .set("Origin", TRUSTED_ORIGIN)
         .set("Authorization", `Bearer ${token}`)
-        .send(backupData);
+        .send({ ...backupData, pin: testUser.pin });
 
       assert.equal(res.status, 200);
       assert.equal(res.body.ok, true);

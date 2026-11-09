@@ -137,6 +137,7 @@ export const exportSelectionSchema = z.object({
 });
 
 export const backupRestoreSchema = z.object({
+  pin: credentialPinSchema.optional(),
   data: backupDataSchema.optional(),
   version: z.string().optional(),
   visitor: backupDataSchema.shape.visitor.optional(),
